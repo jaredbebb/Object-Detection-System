@@ -74,7 +74,7 @@ install:
     - platformio update
 
 script:
-    - platformio --environment embeddedtest
+    - platformio run --environment nodemcuv2
 
 deploy:
   on:
