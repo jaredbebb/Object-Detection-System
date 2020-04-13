@@ -74,7 +74,7 @@ install:
     - platformio update
 
 script:
-    - platformio ci --lib="." -e nodemcuv2
+    - platformio --environment embeddedtest
 
 deploy:
   on:
