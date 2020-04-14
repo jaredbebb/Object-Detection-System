@@ -1,14 +1,16 @@
 import json
 import fileinput
-import sys,os, shutil
+import os
+import sys
+import shutil
 
-print("python version:",sys.version)
+print("using python version:",sys.version)
 
-root = os.getcwd()
+ROOT = os.getcwd()
 
 def copy_dir():
-	shutil.copy(root+"/extra/env_config.cpp", root+"/temp_lib/config/")
-	shutil.copy(root+"/extra/env_config.h", root+"/temp_lib/config/")
+	shutil.copy(ROOT+"/extra/env_config.cpp", ROOT+"/temp_lib/config/")
+	shutil.copy(ROOT+"/extra/env_config.h", ROOT+"/temp_lib/config/")
 
 def replace_all(file,searchExp,replaceExp):
     print("file:"+file)
@@ -17,12 +19,21 @@ def replace_all(file,searchExp,replaceExp):
             line = line.replace(searchExp,replaceExp)
         sys.stdout.write(line)
 
+test_config = dict()
+
+
+def construct_config_file_if_not_exists(original,target): 
+    if not os.path.exists(target):
+        shutil.copyfile(original,target)
+
+construct_config_file_if_not_exists(ROOT+"/conf/config_demo.json",ROOT+"/conf/config.json")
+
 json_config_path = os.getcwd()+"/conf/config.json"
 print("json_config_path:"+json_config_path)
 with open(json_config_path) as f:
     data= json.load(f)
 
-cpp_file = root+"/temp_lib/config/env_config.cpp"
+cpp_file = ROOT+"/temp_lib/config/env_config.cpp"
 match= "{$env_variables}"
 
 copy_dir()

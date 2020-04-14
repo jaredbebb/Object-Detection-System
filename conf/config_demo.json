@@ -1,0 +1,13 @@
+{
+	"AdaFruit":{
+		"AIO_FEED":"AIO_USERNAME/feeds/feedname",
+		"AIO_USERNAME":"AIO_USERNAME",
+		"AIO_KEY":"AIO_KEY",
+		"AIO_SERVERPORT":"1883",
+		"AIO_SERVER":"io.adafruit.com"
+    },
+	"Network":{
+		"WLAN_SSID":"SSID",
+		"WLAN_PASS":"PASSWORD"
+	}
+}

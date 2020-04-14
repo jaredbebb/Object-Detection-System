@@ -42,7 +42,7 @@ penv/
 .vscode/ipch
 
 # environment json files
-conf/
+conf/config.json
 
 # temp cpp files with env info
 temp_lib/
