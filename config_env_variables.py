@@ -29,7 +29,7 @@ def construct_file_if_not_exists(original,target):
 construct_file_if_not_exists(ROOT+"/conf/config_demo.json",ROOT+"/conf/config.json")
 
 # set linux permissions to 777
-prev = os.umask("0o777")
+prev = os.umask(0o777)
 print(prev)
 
 # create temp_lib/config/ dir
