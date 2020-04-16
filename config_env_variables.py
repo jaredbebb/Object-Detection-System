@@ -25,12 +25,16 @@ def construct_file_if_not_exists(original,target):
         print("path doesn't exist, creating path")
         shutil.copyfile(src=original,dst=target)
 
-
+#create /conf/config.json for testing
 construct_file_if_not_exists(ROOT+"/conf/config_demo.json",ROOT+"/conf/config.json")
-temp_lib_config_path = os.path.join(ROOT,"temp_lib/config/")
-print("temp_lib_config_path:",temp_lib_config_path)
-os.makedirs(name=temp_lib_config_path, exist_ok=True)
 
+# set linux permissions to 777
+prev = os.umask("0o777")
+print(prev)
+
+# create temp_lib/config/ dir
+temp_lib_config_path = os.path.join(ROOT,"temp_lib/config/")
+os.makedirs(name=temp_lib_config_path, exist_ok=True)
 
 json_config_path = os.getcwd()+"/conf/config.json"
 print("json_config_path:"+json_config_path)
