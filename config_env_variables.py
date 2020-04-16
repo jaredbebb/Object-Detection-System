@@ -12,21 +12,24 @@ def copy_dir():
 	shutil.copy(ROOT+"/extra/env_config.cpp", ROOT+"/temp_lib/config/")
 	shutil.copy(ROOT+"/extra/env_config.h", ROOT+"/temp_lib/config/")
 
-def replace_all(file,searchExp,replaceExp):
+def replace_tokens(file,searchExp,replaceExp):
     print("file:"+file)
     for line in fileinput.input(file, inplace=1):
         if searchExp in line:
             line = line.replace(searchExp,replaceExp)
         sys.stdout.write(line)
 
-test_config = dict()
 
-
-def construct_config_file_if_not_exists(original,target): 
+def construct_file_if_not_exists(original,target): 
     if not os.path.exists(target):
-        shutil.copyfile(original,target)
+        print("path doesn't exist, creating path")
+        shutil.copyfile(src=original,dst=target)
 
-construct_config_file_if_not_exists(ROOT+"/conf/config_demo.json",ROOT+"/conf/config.json")
+
+construct_file_if_not_exists(ROOT+"/conf/config_demo.json",ROOT+"/conf/config.json")
+temp_lib_config_path = os.path.join(ROOT,"temp_lib/config/")
+os.makedirs(name=temp_lib_config_path, exist_ok=True)
+
 
 json_config_path = os.getcwd()+"/conf/config.json"
 print("json_config_path:"+json_config_path)
@@ -37,4 +40,4 @@ cpp_file = ROOT+"/temp_lib/config/env_config.cpp"
 match= "{$env_variables}"
 
 copy_dir()
-replace_all(cpp_file,match,str(data))
+replace_tokens(cpp_file,match,str(data))

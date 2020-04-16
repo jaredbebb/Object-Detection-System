@@ -36,5 +36,6 @@
         "typeinfo": "cpp"
     },
     "platformio-ide.useBuiltinPIOCore": false,
-    "platformio-ide.customPATH": "penv/Scripts"
+    "platformio-ide.customPATH": "penv/Scripts",
+    "python.pythonPath": "penv\\Scripts\\python.exe"
 }
