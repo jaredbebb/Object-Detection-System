@@ -28,6 +28,9 @@ def construct_file_if_not_exists(original,target):
 #create /conf/config.json for testing
 construct_file_if_not_exists(ROOT+"/conf/config_demo.json",ROOT+"/conf/config.json")
 
+# change permissions to rwx
+os.umask(0o777)
+
 # create temp_lib/config/ dir
 temp_lib_config_path = os.path.join(ROOT,"temp_lib/")
 os.makedirs(name=temp_lib_config_path, exist_ok=True)
