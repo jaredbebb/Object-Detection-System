@@ -38,7 +38,7 @@ os.mkdir(path=temp_lib_config_path,mode=0o777)
 
 temp_lib_config_path = os.path.join(temp_lib_config_path,"config/")
 print("temp_lib_config_path",temp_lib_config_path)
-os.makedirs(name=temp_lib_config_path,mode=0o777)
+os.mkdir(path=temp_lib_config_path,mode=0o777)
 
 json_config_path = os.getcwd()+"/conf/config.json"
 print("json_config_path:"+json_config_path)
