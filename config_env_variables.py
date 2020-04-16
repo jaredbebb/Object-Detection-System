@@ -30,6 +30,7 @@ construct_file_if_not_exists(ROOT+"/conf/config_demo.json",ROOT+"/conf/config.js
 
 # create temp_lib/config/ dir
 temp_lib_config_path = os.path.join(ROOT,"temp_lib/")
+os.makedirs(name=temp_lib_config_path, exist_ok=True)
 temp_lib_config_path = os.path.join(temp_lib_config_path,"config/")
 os.makedirs(name=temp_lib_config_path, exist_ok=True)
 
