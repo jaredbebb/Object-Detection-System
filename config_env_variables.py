@@ -36,7 +36,7 @@ temp_lib_config_path = os.path.join(current_dir,"temp_lib/")
 print("temp_lib_config_path",temp_lib_config_path)
 os.mkdir(path=temp_lib_config_path,mode=0o777)
 
-temp_lib_config_path = os.path.join(temp_lib_config_path,"config/")
+temp_lib_config_path = os.path.join(current_dir,"temp_lib/config/")
 print("temp_lib_config_path",temp_lib_config_path)
 os.mkdir(path=temp_lib_config_path,mode=0o777)
 
