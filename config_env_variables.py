@@ -33,8 +33,11 @@ os.umask(0o777)
 
 # create temp_lib/config/ dir
 temp_lib_config_path = os.path.join(ROOT,"temp_lib/")
+print("",temp_lib_config_path)
 os.makedirs(name=temp_lib_config_path, exist_ok=True)
+
 temp_lib_config_path = os.path.join(temp_lib_config_path,"config/")
+print("",temp_lib_config_path)
 os.makedirs(name=temp_lib_config_path, exist_ok=True)
 
 json_config_path = os.getcwd()+"/conf/config.json"
