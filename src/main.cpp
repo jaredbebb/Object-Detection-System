@@ -2,21 +2,33 @@
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 #include <env_config.h>
+#include <pir.h>
 
-EnvConfig adafruit_config("AdaFruit");
-const char* AIO_KEY = adafruit_config.GetDoc()["AdaFruit"]["AIO_KEY"];
 
-const char* AIO_USERNAME = adafruit_config.GetDoc()["AdaFruit"]["AIO_USERNAME"];
 
+EnvConfig network_config;
+
+EnvConfig adafruit_config;
+//EnvConfig adafruit_config("AdaFruit");
+char * Adafruit = "AdaFruit";
+
+char * aio_key = "AIO_KEY";
+const char* AIO_KEY = adafruit_config.GetDoc(Adafruit,aio_key);
+//const char* AIO_KEY = adafruit_config.GetDoc()["AdaFruit"]["AIO_KEY"];
+
+char * aio_username = "AIO_USERNAME";
+const char* AIO_USERNAME = adafruit_config.GetDoc(Adafruit,aio_username);
+//const char* AIO_USERNAME = adafruit_config.GetDoc()["AdaFruit"]["AIO_USERNAME"];
+
+
+//const uint16_t aio_serverport = "AIO_SERVERPORT";
+//const char* AIO_SERVERPORT = adafruit_config.GetDoc(Adafruit,aio_serverport);
 const uint16_t AIO_SERVERPORT =  1883;
-const char* AIO_SERVER = adafruit_config.GetDoc()["AdaFruit"]["AIO_SERVER"];
 
-const char * feed = adafruit_config.GetDoc()["AdaFruit"]["AIO_FEED"];
+char * aio_server = "AIO_SERVER";
+const char* AIO_SERVER = adafruit_config.GetDoc(Adafruit,aio_server);
+//const char* AIO_SERVER = adafruit_config.GetDoc()["AdaFruit"]["AIO_SERVER"];
 
-/* Put your SSID & Password */
-EnvConfig network_config("Network");
-const char* WLAN_PASS = network_config.GetDoc()["AdaFruit"]["AIO_SERVER"];
-const char* WLAN_SSID = network_config.GetDoc()["AdaFruit"]["AIO_SERVER"];
 
 
 // Create an ESP8266 WiFiClient class to connect to the MQTT server.
@@ -29,7 +41,12 @@ Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO
 
 /****************************** Feeds ***************************************/
 // Setup a feed called 'backyardImages' for publishing.
-Adafruit_MQTT_Publish backyardImages = Adafruit_MQTT_Publish(&mqtt, feed);
+
+char * aio_feed = "AIO_FEED";
+const char* AIO_FEED = adafruit_config.GetDoc(Adafruit,aio_feed);
+//const char * Adafruit_MQTT_FEED = adafruit_config.GetDoc()["AdaFruit"]["AIO_FEED"];
+
+Adafruit_MQTT_Publish backyardImages = Adafruit_MQTT_Publish(&mqtt, AIO_FEED);
 
 
 // Bug workaround for Arduino 1.6.6, it seems to need a function declaration
@@ -39,12 +56,25 @@ void MQTT_connect();
 uint16_t backyardImage = 9;
 uint16_t flag = 1;
 
+
+// start PIR
+// int pirSensor = 13;  // Digital pin D7
+Pir pir(13);
+// end PIR
+
 void setup() {
   Serial.begin(115200);
   delay(10);
 
-  Serial.println(F("Adafruit MQTT demo"));
+  /*SSID & Password */
+  char * Network = "Network";
 
+  char * wlan_ssid = "WLAN_SSID";
+  const char* WLAN_SSID = network_config.GetDoc(Network,wlan_ssid);
+
+  char * wlan_pass = "WLAN_PASS";
+  const char* WLAN_PASS = network_config.GetDoc(Network,wlan_pass);
+  
   // Connect to WiFi access point.
   Serial.println(); Serial.println();
   Serial.print("Connecting to ");
@@ -59,16 +89,24 @@ void setup() {
 
   Serial.println("WiFi connected");
   Serial.println("IP address: "); Serial.println(WiFi.localIP());
+
+  // enable PIR interrupt
+  pir.enable();
+  // end PIR
 }
 
 void loop() {
-  // Ensure the connection to the MQTT server is alive (this will make the first
-  // connection and automatically reconnect when disconnected).  See the MQTT_connect
-  // function definition further below.
+  /*
+  Ensure the connection to the MQTT server is alive (this will make the first
+  connection and automatically reconnect when disconnected).  See the MQTT_connect
+  function definition further below.
+  */
   MQTT_connect();
 
-  // this is our 'wait for incoming subscription packets' busy subloop
-  // try to spend your time here
+  /*
+  this is our 'wait for incoming subscription packets' busy subloop
+  try to spend your time here
+  */
 
   if (flag != 0){
     Serial.print(F("Sending backyard image "));
@@ -78,10 +116,9 @@ void loop() {
       Serial.println(F("Failed"));
     } else {
       Serial.println(F("OK!"));
+      flag = 0;
     }
   }
-
-  flag = 0;
 }
 
 // Function to connect and reconnect as necessary to the MQTT server.

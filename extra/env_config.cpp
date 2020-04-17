@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include <env_config.h>
 
 /*
@@ -18,11 +17,13 @@ json = F(
     }
 )
 */
-EnvConfig::EnvConfig(char element[]){
-    Serial.begin(115200);
-    filter[element] = true;
-    const __FlashStringHelper* json = F("{$env_variables}");
-    DeserializationError err = deserializeJson(doc, json, DeserializationOption::Filter(filter));
+EnvConfig::EnvConfig(){
+}
+
+
+const char * EnvConfig::GetDoc(char element[],char element1[]){
+    json = F("{$env_variables}");
+    DeserializationError err = deserializeJson(doc, json);
     if (err) {
         Serial.print(F("deserializeJson() failed with code "));
         Serial.println(err.c_str());
@@ -31,12 +32,11 @@ EnvConfig::EnvConfig(char element[]){
         Serial.print("deserialized successfully");
         Serial.println();
     }
+    return doc[element][element1];
+}
+EnvConfig::~EnvConfig(){
+    delete json;
 }
 
-StaticJsonDocument<512> EnvConfig::GetDoc(){
-    return doc;
-}
-
-EnvConfig::~EnvConfig(){}
 
 

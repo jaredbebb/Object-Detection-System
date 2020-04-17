@@ -2,10 +2,11 @@
 
 class EnvConfig{
     private:
-    public:
+        const __FlashStringHelper* json;
         StaticJsonDocument<512> doc;
-        EnvConfig(char element[]);
+    public:
+        EnvConfig();
         ~EnvConfig();
-        StaticJsonDocument<200> filter;
-        StaticJsonDocument<512> GetDoc();
+        //StaticJsonDocument<200> filter;
+        const char * GetDoc(char element[],char element1[]);
 };

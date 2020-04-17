@@ -17,8 +17,19 @@ def replace_tokens(file,searchExp,replaceExp):
             line = line.replace(searchExp,replaceExp)
         sys.stdout.write(line)
 
-json_config_path = os.getcwd()+"/conf/config.json"
+
+# Get platformio environemnt variable
+Import("env")
+pioenv = env['PIOENV']
+
+# use test config if doing embedded testing
+if pioenv == "embeddedtest":
+    json_config_path = os.getcwd()+"/conf/config_demo.json"
+else:    
+    json_config_path = os.getcwd()+"/conf/config.json"
 print("json_config_path:"+json_config_path)
+
+# load config file as json
 with open(json_config_path) as f:
     data= json.load(f)
 
@@ -27,3 +38,5 @@ match= "{$env_variables}"
 
 
 replace_tokens(cpp_file,match,str(data))
+
+
