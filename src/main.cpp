@@ -1,149 +1,195 @@
-#include <ESP8266WiFi.h>
-#include "Adafruit_MQTT.h"
-#include "Adafruit_MQTT_Client.h"
+//https://github.com/bitluni/ESP32CameraI2S/blob/master/ESP32_I2S_Camera/ESP32_I2S_Camera.ino
+
+#include "OV7670.h"
+#include <WiFi.h>
+#include <WiFiMulti.h>
+#include <WiFiClient.h>
+#include "BMP.h"
+
 #include <env_config.h>
-#include <pir.h>
 
+const int SIOD = 21; //SDA
+const int SIOC = 22; //SCL
 
+const int VSYNC = 34;
+const int HREF = 35;
 
+const int XCLK = 32;
+const int PCLK = 33;
+
+const int D0 = 27;
+const int D1 = 17;
+const int D2 = 16;
+const int D3 = 15;
+const int D4 = 14;
+const int D5 = 13;
+const int D6 = 12;
+const int D7 = 4;
+
+const int TFT_DC = 2;
+const int TFT_CS = 5;
+
+//DIN <- MOSI 23
+//CLK <- SCK 18
+
+//Wifi credentials
 EnvConfig network_config;
+char * Network = "Network";
+const char* WLAN_SSID  = network_config.GetDoc(Network,"WLAN_SSID");
+const char* WLAN_PASS  = network_config.GetDoc(Network,"WLAN_PASS");
 
-EnvConfig adafruit_config;
-//EnvConfig adafruit_config("AdaFruit");
-char * Adafruit = "AdaFruit";
+//mqtt credentials
+char * MQQTT = "MQTT";
+EnvConfig mqtt_config;
+const char* MQTT_TOPIC  = mqtt_config.GetDoc(MQQTT,"MQTT_TOPIC");
+const char* MQTT_USERNAME  = mqtt_config.GetDoc(MQQTT,"MQTT_USERNAME");
+const char* MQTT_KEY  = mqtt_config.GetDoc(MQQTT,"MQTT_KEY");
+const char* MQTT_SERVER  = mqtt_config.GetDoc(MQQTT,"MQTT_SERVER");
+//const char* MQTT_SERVERPORT  = mqtt_config.GetDoc(Network,"MQTT_SERVERPORT");
+#define MQTT_SERVERPORT  1883
 
-char * aio_key = "AIO_KEY";
-const char* AIO_KEY = adafruit_config.GetDoc(Adafruit,aio_key);
-//const char* AIO_KEY = adafruit_config.GetDoc()["AdaFruit"]["AIO_KEY"];
+#include "MQTTStuff.h"
 
-char * aio_username = "AIO_USERNAME";
-const char* AIO_USERNAME = adafruit_config.GetDoc(Adafruit,aio_username);
-//const char* AIO_USERNAME = adafruit_config.GetDoc()["AdaFruit"]["AIO_USERNAME"];
+OV7670 *camera;
+
+WiFiMulti wifiMulti;
+
+WiFiServer server(80);
+
+unsigned char bmpHeader[BMP::headerSize];
+
+void MQTT_connect() {
+    WiFiClient client = server.available();
+    int8_t ret;
+
+    // Stop if already connected.
+    if (mqtt.connected()) {
+      return;
+    }
+
+    Serial.print("Connecting to MQTT... ");
+
+    uint8_t retries = 3;
+    while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
+        Serial.println(mqtt.connectErrorString(ret));
+        Serial.println("Retrying MQTT connection in 5 seconds...");
+        mqtt.disconnect();
+        delay(5000);  // wait 5 seconds
+        retries--;
+        if (retries == 0) {
+          // basically die and wait for WDT to reset me
+          while (1);
+        }
+    }
+    Serial.println("MQTT Connected!");
+        // close the connection:
+    int retry = 3;
+    while(retry > 0){
+        int response = mqttcamera.publish(WiFi.localIP().toString().c_str());
+        Serial.println(response);
+        retry--;
+        Serial.print("retry:");
+        Serial.println(retry);
+        delay(1000);
+    }
+
+    client.stop();
+}
 
 
-//const uint16_t aio_serverport = "AIO_SERVERPORT";
-//const char* AIO_SERVERPORT = adafruit_config.GetDoc(Adafruit,aio_serverport);
-const uint16_t AIO_SERVERPORT =  1883;
+void serve()
+{
+  WiFiClient client = server.available();
+  if (client) 
+  {
+    //Serial.println("New Client.");
+    String currentLine = "";
+    while (client.connected()) 
+    {
+      if (client.available()) 
+      {
+        char c = client.read();
+        //Serial.write(c);
+        if (c == '\n') 
+        {
+          if (currentLine.length() == 0) 
+          {
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-type:text/html");
+            client.println();
+            client.print(
+              "<style>body{margin: 0}\nimg{height: 100%; width: auto}</style>"
+              "<img id='a' src='/camera' onload='this.style.display=\"initial\"; var b = document.getElementById(\"b\"); b.style.display=\"none\"; b.src=\"camera?\"+Date.now(); '>"
+              "<img id='b' style='display: none' src='/camera' onload='this.style.display=\"initial\"; var a = document.getElementById(\"a\"); a.style.display=\"none\"; a.src=\"camera?\"+Date.now(); '>");
+            client.println();
+            break;
+          } 
+          else 
+          {
+            currentLine = "";
+          }
+        } 
+        else if (c != '\r') 
+        {
+          currentLine += c;
+        }
+        
+        if(currentLine.endsWith("GET /camera"))
+        {
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-type:image/bmp");
+            client.println();
+            
+            client.write(bmpHeader, BMP::headerSize);
+            client.write(camera->frame, camera->xres * camera->yres * 2);
+        }
+      }
+    }
+    // close the connection:
+    client.stop();
+    //Serial.println("Client Disconnected.");
+  }  
+}
 
-char * aio_server = "AIO_SERVER";
-const char* AIO_SERVER = adafruit_config.GetDoc(Adafruit,aio_server);
-//const char* AIO_SERVER = adafruit_config.GetDoc()["AdaFruit"]["AIO_SERVER"];
-
-
-
-// Create an ESP8266 WiFiClient class to connect to the MQTT server.
-WiFiClient client;
-// or... use WiFiFlientSecure for SSL
-//WiFiClientSecure client;
-
-// Setup the MQTT client class by passing in the WiFi client and MQTT server and login details.
-Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
-
-/****************************** Feeds ***************************************/
-// Setup a feed called 'backyardImages' for publishing.
-
-char * aio_feed = "AIO_FEED";
-const char* AIO_FEED = adafruit_config.GetDoc(Adafruit,aio_feed);
-//const char * Adafruit_MQTT_FEED = adafruit_config.GetDoc()["AdaFruit"]["AIO_FEED"];
-
-Adafruit_MQTT_Publish backyardImages = Adafruit_MQTT_Publish(&mqtt, AIO_FEED);
-
-
-// Bug workaround for Arduino 1.6.6, it seems to need a function declaration
-// for some reason (only affects ESP8266, likely an arduino-builder bug).
-void MQTT_connect();
-
-uint16_t backyardImage = 9;
-uint16_t flag = 1;
-
-
-// start PIR
-// int pirSensor = 13;  // Digital pin D7
-Pir pir(13);
-// end PIR
+void SystemDetails(){
+  log_d("Total heap: %d", ESP.getHeapSize());
+  log_d("Free heap: %d", ESP.getFreeHeap());
+  log_d("Total PSRAM: %d", ESP.getPsramSize());
+  log_d("Free PSRAM: %d", ESP.getFreePsram());
+  
+  log_d("getMaxAllocPsram: %d", ESP.getMaxAllocPsram());
+  log_d("getFlashChipSpeed: %d", ESP.getFlashChipSpeed());
+  log_d("getMinFreePsram: %d", ESP.getMinFreePsram());
+  log_d("getChipRevision: %d", ESP.getChipRevision());
+}
 
 void setup() {
-  Serial.begin(115200);
-  delay(10);
+    Serial.begin(115200);
+    delay(2000);
+    Serial.println("Network stuff...");
+    Serial.println(WLAN_SSID);
+    Serial.println(WLAN_PASS);
+    wifiMulti.addAP(WLAN_SSID, WLAN_PASS);
+    //wifiMulti.addAP(ssid2, password2);
+    Serial.println("Connecting Wifi...");
+    if(wifiMulti.run() == WL_CONNECTED) {
+        Serial.println("");
+        Serial.println("WiFi connected");
+        Serial.println("IP address: ");
+        Serial.println(WiFi.localIP());
+    }
 
-  /*SSID & Password */
-  char * Network = "Network";
-
-  char * wlan_ssid = "WLAN_SSID";
-  const char* WLAN_SSID = network_config.GetDoc(Network,wlan_ssid);
-
-  char * wlan_pass = "WLAN_PASS";
-  const char* WLAN_PASS = network_config.GetDoc(Network,wlan_pass);
+  camera = new OV7670(OV7670::Mode::QQVGA_RGB565, SIOD, SIOC, VSYNC, HREF, XCLK, PCLK, D0, D1, D2, D3, D4, D5, D6, D7);
+  BMP::construct16BitHeader(bmpHeader, camera->xres, camera->yres);
   
-  // Connect to WiFi access point.
-  Serial.println(); Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(WLAN_SSID);
-
-  WiFi.begin(WLAN_SSID, WLAN_PASS);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.println("waiting to connect to wifi");
-  }
-  Serial.println();
-
-  Serial.println("WiFi connected");
-  Serial.println("IP address: "); Serial.println(WiFi.localIP());
-
-  // enable PIR interrupt
-  pir.enable();
-  // end PIR
+  //tft.initR(INITR_BLACKTAB);
+  //tft.fillScreen(0);
+  server.begin();
+  SystemDetails();
+  MQTT_connect();
 }
 
 void loop() {
-  /*
-  Ensure the connection to the MQTT server is alive (this will make the first
-  connection and automatically reconnect when disconnected).  See the MQTT_connect
-  function definition further below.
-  */
-  MQTT_connect();
-
-  /*
-  this is our 'wait for incoming subscription packets' busy subloop
-  try to spend your time here
-  */
-
-  if (flag != 0){
-    Serial.print(F("Sending backyard image "));
-    Serial.print(backyardImage);
-    Serial.print("...");
-    if (! backyardImages.publish(backyardImage)) {
-      Serial.println(F("Failed"));
-    } else {
-      Serial.println(F("OK!"));
-      flag = 0;
-    }
-  }
-}
-
-// Function to connect and reconnect as necessary to the MQTT server.
-// Should be called in the loop function and it will take care if connecting.
-void MQTT_connect() {
-  int8_t ret;
-
-  // Stop if already connected.
-  if (mqtt.connected()) {
-    return;
-  }
-
-  Serial.print("Connecting to MQTT... ");
-
-  uint8_t retries = 3;
-  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-       Serial.println(mqtt.connectErrorString(ret));
-       Serial.println("Retrying MQTT connection in 5 seconds...");
-       mqtt.disconnect();
-       delay(5000);  // wait 5 seconds
-       retries--;
-       if (retries == 0) {
-         // basically die and wait for WDT to reset me
-         while (1);
-       }
-  }
-  Serial.println("MQTT Connected!");
+  camera->oneFrame();
+  serve();
 }
