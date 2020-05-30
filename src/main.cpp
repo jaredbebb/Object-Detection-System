@@ -5,38 +5,16 @@
 #include <WiFiMulti.h>
 #include <WiFiClient.h>
 #include "BMP.h"
+#include <pir.h>
 
 #include <env_config.h>
-
-const int SIOD = 21; //SDA
-const int SIOC = 22; //SCL
-
-const int VSYNC = 34;
-const int HREF = 35;
-
-const int XCLK = 32;
-const int PCLK = 33;
-
-const int D0 = 27;
-const int D1 = 17;
-const int D2 = 16;
-const int D3 = 15;
-const int D4 = 14;
-const int D5 = 13;
-const int D6 = 12;
-const int D7 = 4;
-
-const int TFT_DC = 2;
-const int TFT_CS = 5;
-
-//DIN <- MOSI 23
-//CLK <- SCK 18
 
 //Wifi credentials
 EnvConfig network_config;
 char * Network = "Network";
 const char* WLAN_SSID  = network_config.GetDoc(Network,"WLAN_SSID");
 const char* WLAN_PASS  = network_config.GetDoc(Network,"WLAN_PASS");
+
 
 //mqtt credentials
 char * MQQTT = "MQTT";
@@ -50,6 +28,8 @@ const char* MQTT_SERVER  = mqtt_config.GetDoc(MQQTT,"MQTT_SERVER");
 
 #include "MQTTStuff.h"
 
+Pir pir(25);
+
 OV7670 *camera;
 
 WiFiMulti wifiMulti;
@@ -57,6 +37,20 @@ WiFiMulti wifiMulti;
 WiFiServer server(80);
 
 unsigned char bmpHeader[BMP::headerSize];
+
+
+void IRAM_ATTR isr(void* arg){
+//gpio_isr_t  isr() {
+    pir.state = !pir.state;
+    if(pir.state == HIGH) {
+        //digitalWrite (Status, HIGH);
+        Serial.println("Motion detected!");
+    }
+    else {
+        //digitalWrite (Status, LOW);
+        // Serial.println("Motion absent!");
+    } 
+}
 
 void MQTT_connect() {
     WiFiClient client = server.available();
@@ -166,11 +160,26 @@ void SystemDetails(){
 void setup() {
     Serial.begin(115200);
     delay(2000);
-    Serial.println("Network stuff...");
-    Serial.println(WLAN_SSID);
-    Serial.println(WLAN_PASS);
+
+    int SIOD = 21; //SDA
+    int SIOC = 22; //SCL
+
+    int VSYNC = 34;
+    int HREF = 35;
+
+    int XCLK = 32;
+    int PCLK = 33;
+
+    int D0 = 27;
+    int D1 = 17;
+    int D2 = 16;
+    int D3 = 15;
+    int D4 = 14;
+    int D5 = 13;
+    int D6 = 12;
+    int D7 = 4;
+
     wifiMulti.addAP(WLAN_SSID, WLAN_PASS);
-    //wifiMulti.addAP(ssid2, password2);
     Serial.println("Connecting Wifi...");
     if(wifiMulti.run() == WL_CONNECTED) {
         Serial.println("");
@@ -178,18 +187,24 @@ void setup() {
         Serial.println("IP address: ");
         Serial.println(WiFi.localIP());
     }
-
-  camera = new OV7670(OV7670::Mode::QQVGA_RGB565, SIOD, SIOC, VSYNC, HREF, XCLK, PCLK, D0, D1, D2, D3, D4, D5, D6, D7);
-  BMP::construct16BitHeader(bmpHeader, camera->xres, camera->yres);
-  
-  //tft.initR(INITR_BLACKTAB);
-  //tft.fillScreen(0);
-  server.begin();
-  SystemDetails();
-  MQTT_connect();
+    ESP_ERROR_CHECK(gpio_install_isr_service(0));
+    camera = new OV7670(OV7670::Mode::QQVGA_RGB565, SIOD, SIOC, VSYNC, HREF, XCLK, PCLK, D0, D1, D2, D3, D4, D5, D6, D7);
+    BMP::construct16BitHeader(bmpHeader, camera->xres, camera->yres);
+    server.begin();
+    SystemDetails();
+    MQTT_connect();
+    esp_err_t err;
+    err = gpio_isr_handler_add(GPIO_NUM_25, &isr, (void *) 25);
+    if (err != ESP_OK) {
+      Serial.printf("handler add failed with error 0x%x \r\n", err);
+    }
+    err = gpio_set_intr_type(GPIO_NUM_25, GPIO_INTR_POSEDGE);
+    if (err != ESP_OK) {
+      Serial.printf("set intr type failed with error 0x%x \r\n", err);
+    }
 }
 
 void loop() {
-  camera->oneFrame();
-  serve();
+    camera->oneFrame();
+    serve();
 }

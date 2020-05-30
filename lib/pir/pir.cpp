@@ -22,10 +22,15 @@ void Pir::event(void){
 
 void Pir::enable(void){
     Serial.println("Enabling pir...");
-    attachInterrupt(sensorPin, std::bind(&Pir::event,this), CHANGE);
+    //attachInterrupt(sensorPin, std::bind(&Pir::event,this), CHANGE);
+    //attachInterrupt(sensorPin, isr, FALLING);
     Serial.println("Pir enabled...");
 }
 
 byte Pir::get_state(){
     return state;
+}
+
+int Pir::sensor_pin(){
+    return sensorPin;
 }

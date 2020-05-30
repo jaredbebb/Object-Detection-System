@@ -60,7 +60,7 @@ void IRAM_ATTR I2SCamera::vSyncInterrupt(void* arg)
 void I2SCamera::i2sStop()
 {
     esp_intr_disable(i2sInterruptHandle);
-    esp_intr_disable(vSyncInterruptHandle);
+    gpio_set_intr_type(vSyncPin, GPIO_INTR_DISABLE);
     i2sConfReset();
     I2S0.conf.rx_start = 0;
 }
@@ -72,6 +72,7 @@ void I2SCamera::i2sRun()
     while (gpio_get_level(vSyncPin) != 0);
 
     esp_intr_disable(i2sInterruptHandle);
+
     i2sConfReset();
     blocksReceived = 0;
     dmaBufferActive = 0;
@@ -85,28 +86,32 @@ void I2SCamera::i2sRun()
     I2S0.int_ena.val = 0;
     I2S0.int_ena.in_done = 1;
     esp_intr_enable(i2sInterruptHandle);
-    esp_intr_enable(vSyncInterruptHandle);
+    gpio_set_intr_type(vSyncPin, GPIO_INTR_NEGEDGE);
     I2S0.conf.rx_start = 1;
 }
 
+
 bool I2SCamera::initVSync(int pin)
 {
-  DEBUG_PRINT("Initializing VSYNC... ");
-  vSyncPin = (gpio_num_t)pin;
-  gpio_set_intr_type(vSyncPin, GPIO_INTR_POSEDGE);
-  gpio_intr_enable(vSyncPin);
-  if(gpio_isr_register(&vSyncInterrupt, (void*)"vSyncInterrupt", ESP_INTR_FLAG_INTRDISABLED | ESP_INTR_FLAG_IRAM, &vSyncInterruptHandle) != ESP_OK) 
-  {
-    DEBUG_PRINTLN("failed!");
-    return false;
-  }
-  DEBUG_PRINTLN("done.");
-  return true;
+    DEBUG_PRINT("Initializing VSYNC... ");
+    vSyncPin = (gpio_num_t)pin;
+
+    esp_err_t err = ESP_OK;
+    gpio_set_intr_type(vSyncPin, GPIO_INTR_NEGEDGE);
+    err = gpio_isr_handler_add(vSyncPin, &vSyncInterrupt, NULL);
+    if (err != ESP_OK)
+    {
+      DEBUG_PRINTLN("failed!");
+      return false;
+    }
+    DEBUG_PRINTLN("done.");
+    return true;
 }
 
 void I2SCamera::deinitVSync()
 {
   esp_intr_disable(vSyncInterruptHandle);
+  gpio_set_intr_type(vSyncPin, GPIO_INTR_DISABLE);
 }
 
 bool I2SCamera::init(const int XRES, const int YRES, const int VSYNC, const int HREF, const int XCLK, const int PCLK, const int D0, const int D1, const int D2, const int D3, const int D4, const int D5, const int D6, const int D7)

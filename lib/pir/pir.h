@@ -2,11 +2,13 @@
 
 class Pir{
     private:
-        int sensorPin = 13;
-        volatile byte state = LOW;
+        int sensorPin = 5;
     public:
         Pir(int pin);
         void enable(void);
         void event(void);
         byte get_state();
+        int sensor_pin();
+        volatile byte state = LOW;
+
 };
