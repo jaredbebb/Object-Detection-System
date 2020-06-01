@@ -73,7 +73,7 @@ install:
     - platformio update
 
 script:
-    - platformio run --environment nodemcuv2 
+    - platformio run --environment esp32dev 
 
 deploy:
   on:
@@ -85,4 +85,4 @@ deploy:
   overwrite: true
   api_key:
     secure: $GH_REPO_TOKEN
-  file: ".pio/build/nodemcuv2/firmware.bin"
+  file: ".pio/build/esp32dev/firmware.bin"

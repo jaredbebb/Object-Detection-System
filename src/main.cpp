@@ -6,6 +6,7 @@
 #include <WiFiClient.h>
 #include "BMP.h"
 #include <pir.h>
+#include "esp_intr_alloc.h"
 
 #include <env_config.h>
 
@@ -14,7 +15,6 @@ EnvConfig network_config;
 char * Network = "Network";
 const char* WLAN_SSID  = network_config.GetDoc(Network,"WLAN_SSID");
 const char* WLAN_PASS  = network_config.GetDoc(Network,"WLAN_PASS");
-
 
 //mqtt credentials
 char * MQQTT = "MQTT";
@@ -38,19 +38,7 @@ WiFiServer server(80);
 
 unsigned char bmpHeader[BMP::headerSize];
 
-
-void IRAM_ATTR isr(void* arg){
-//gpio_isr_t  isr() {
-    pir.state = !pir.state;
-    if(pir.state == HIGH) {
-        //digitalWrite (Status, HIGH);
-        Serial.println("Motion detected!");
-    }
-    else {
-        //digitalWrite (Status, LOW);
-        // Serial.println("Motion absent!");
-    } 
-}
+bool motionFlag;
 
 void MQTT_connect() {
     WiFiClient client = server.available();
@@ -78,32 +66,61 @@ void MQTT_connect() {
     Serial.println("MQTT Connected!");
         // close the connection:
     int retry = 3;
-    while(retry > 0){
-        int response = mqttcamera.publish(WiFi.localIP().toString().c_str());
-        Serial.println(response);
+    bool pub = false;
+    while(retry > 0  &&  pub == false){
+        pub = mqttcamera.publish(WiFi.localIP().toString().c_str());
         retry--;
         Serial.print("retry:");
         Serial.println(retry);
         delay(1000);
     }
-
     client.stop();
 }
 
+void MQTT_pub(const char* s) {
+    Serial.println("In MQTT_connect_pub");
+    WiFiClient client = server.available();
+    Serial.println("Server connection setup");
+    int8_t ret;
+    //Stop if already connected.
+    if(!mqtt.connected()){      
+        Serial.print("Connecting to MQTT... ");
+        uint8_t retries = 3;
+        while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
+            Serial.println(mqtt.connectErrorString(ret));
+            Serial.println("Retrying MQTT connection in 5 seconds...");
+            mqtt.disconnect();
+            delay(5000);  // wait 5 seconds
+            retries--;
+            if (retries == 0) {
+              //basically die and wait for WDT to reset me
+              while (1);
+           }
+        }
+        Serial.println("MQTT Connected!");
+    }
+    int retry = 3;
+    bool pub = false;
+    while(retry > 0  &&  pub == false){
+        pub = mqttcamera.publish(s);
+        retry--;
+        Serial.print("retry:");
+        Serial.println(retry);
+        delay(1000);
+    }
+}
 
 void serve()
 {
   WiFiClient client = server.available();
   if (client) 
   {
-    //Serial.println("New Client.");
     String currentLine = "";
     while (client.connected()) 
     {
       if (client.available()) 
       {
         char c = client.read();
-        //Serial.write(c);
         if (c == '\n') 
         {
           if (currentLine.length() == 0) 
@@ -139,11 +156,19 @@ void serve()
         }
       }
     }
-    // close the connection:
     client.stop();
-    //Serial.println("Client Disconnected.");
   }  
 }
+
+void IRAM_ATTR isr(void* arg){
+    
+    pir.state = !pir.state;
+    if(pir.state == HIGH) {
+        motionFlag = true;
+        Serial.println("Motion detected!");
+    }
+}
+
 
 void SystemDetails(){
   log_d("Total heap: %d", ESP.getHeapSize());
@@ -198,13 +223,23 @@ void setup() {
     if (err != ESP_OK) {
       Serial.printf("handler add failed with error 0x%x \r\n", err);
     }
-    err = gpio_set_intr_type(GPIO_NUM_25, GPIO_INTR_POSEDGE);
+    err = gpio_set_intr_type(GPIO_NUM_25, GPIO_INTR_ANYEDGE);
     if (err != ESP_OK) {
       Serial.printf("set intr type failed with error 0x%x \r\n", err);
     }
+    //xTaskCreatePinnedToCore(cam_serve_task, "cam_serve_task", 2048, NULL, 10, NULL, 0);
+    camera->oneFrame();
 }
 
+
 void loop() {
-    camera->oneFrame();
     serve();
+    if (motionFlag){
+        camera->oneFrame();
+        motionFlag = false;
+        Serial.println("posting to MQTT...");
+        MQTT_pub(WiFi.localIP().toString().c_str());
+        Serial.println("mqtt posted!");
+
+    }
 }
